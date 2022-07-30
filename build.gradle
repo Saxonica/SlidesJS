@@ -1,0 +1,170 @@
+buildscript {
+  repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+      url "https://dev.saxonica.com/maven"
+    }
+  }
+
+  dependencies {
+    classpath group: "com.saxonica", name: "Saxon-EE", version: saxonVersion
+  }
+}
+
+plugins {
+  id "java"
+  id "de.undercouch.download" version "4.0.4"
+}
+
+import de.undercouch.gradle.tasks.download.Download
+
+repositories {
+  mavenLocal()
+  mavenCentral()
+  maven {
+    url "https://dev.saxonica.com/maven"
+  }
+}
+
+configurations.all {
+  resolutionStrategy {
+    force 'xml-apis:xml-apis:1.4.01'
+  }
+}
+
+configurations {
+  saxon.extendsFrom(implementation)
+}
+
+// Where can we find a Saxon license (for the XJ compiler)
+if (!hasProperty("saxonLicenseDir")) {
+  if (System.getenv("SAXON_LICENSE_DIR") != null) {
+    ext.saxonLicenseDir=System.getenv("SAXON_LICENSE_DIR")
+  } else {
+    ext.saxonLicenseDir=System.getenv('HOME') + "/java"
+  }
+}
+
+dependencies {
+  implementation (
+    [group: "com.saxonica", name: "Saxon-EE", version: saxonVersion]
+  )
+  saxon (
+    files(saxonLicenseDir)
+  )
+}
+
+defaultTasks 'publish'
+
+task publish(dependsOn: ["copyResources", "compileXslt"]) {
+  doLast {
+    println("Pages published in ${buildDir}")
+  }
+}
+
+task copyResources(type: Copy) {
+  into "${buildDir}/website"
+  from ("${projectDir}/src/main") {
+    exclude "xslt/**"
+  }
+  doFirst {
+    mkdir "${buildDir}/website"
+  }
+}
+
+if (xsltCompiler == "XX") {
+  task createPackageJson() {
+    doLast {
+      new File("package.json")
+        .withWriter("utf-8") { writer ->
+          writer.writeLine("{")
+          writer.writeLine("  \"name\": \"SlidesJS\",")
+          writer.writeLine("  \"version\": \"${slidesJSversion}\"")
+          writer.writeLine("}")
+        }
+    }
+  }
+  createPackageJson.onlyIf {
+    !file("package.json").exists()
+  }
+
+  task installXslt3(type: Exec, dependsOn: ["createPackageJson"]) {
+    commandLine "npm", "install", "xslt3"
+  }
+  installXslt3.onlyIf {
+    !file("node_modules/xslt3/xslt3.js").exists()
+  }
+
+  task compileXslt(type: Exec, dependsOn: ["installXslt3"]) {
+    inputs.file "${projectDir}/src/main/xslt/slides.xsl"
+    outputs.file "${buildDir}/website/xslt/slides.sef.json"
+    commandLine "node", "node_modules/xslt3/xslt3.js",
+      "-t", "-xsl:${projectDir}/src/main/xslt/slides.xsl",
+      "-export:${buildDir}/website/xslt/slides.sef.json",
+      "-nogo", "-ns:##html5", "-relocate:on"
+    doFirst {
+      mkdir "${buildDir}/website/xslt"
+    }
+  }
+
+  task cleanupNode() {
+    doLast {
+      delete "package.json"
+      delete "package-lock.json"
+      delete "node_modules"
+    }
+  }
+  clean.dependsOn cleanupNode
+} else if (xsltCompiler == "XJ") {
+  if (file(saxonLicenseDir + "/saxon-license.lic").exists()) {
+    task compileXslt(type: JavaExec) {
+      inputs.file "${projectDir}/src/main/xslt/slides.xsl"
+      outputs.file "${buildDir}/website/xslt/slides.sef.json"
+      classpath = configurations.saxon
+      mainClass = "com.saxonica.Transform"
+      args "-t",
+        "-xsl:${projectDir}/src/main/xslt/slides.xsl",
+        "-export:${buildDir}/website/xslt/slides.sef.json",
+        "-target:JS", "-nogo", "-relocate:on", "-ns:##html5"
+      doFirst {
+        mkdir "${buildDir}/website/xslt"
+      }
+    }
+  } else {
+    task compileXslt() {
+      doLast {
+        println("************************************************************")
+        println("* You must have a Saxon EE license to use the XJ compiler. *")
+        println("************************************************************")
+      }
+    }
+  }
+} else {
+  throw new GradleException("The xsltCompiler option must be 'XJ' or 'XX'.")
+}
+
+// ============================================================ 
+// Download Saxon JS if necessary
+
+task downloadSaxonJs(type: Download) {
+  src "https://www.saxonica.com/saxon-js/download/Saxon-JS-${saxonJsVersion}.zip"
+  dest "${buildDir}"
+  doFirst {
+    mkdir(buildDir)
+  }
+}
+downloadSaxonJs.onlyIf {
+  !file("${buildDir}/Saxon-JS-${saxonJsVersion}.zip").exists()
+}
+
+task copySaxonJs(type: Copy, dependsOn: ["downloadSaxonJs"]) {
+  def zipFile = file("${buildDir}/Saxon-JS-${saxonJsVersion}.zip")
+  from zipTree(zipFile)
+  into "${buildDir}/website/js"
+  include "**/*.js"
+  doFirst {
+    mkdir "${buildDir}/website"
+  }
+}
+copyResources.dependsOn copySaxonJs
