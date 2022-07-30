@@ -57,10 +57,8 @@ dependencies {
 
 defaultTasks 'publish'
 
-task publish(dependsOn: ["copyResources", "compileXslt"]) {
-  doLast {
-    println("Pages published in ${buildDir}")
-  }
+task publish(dependsOn: ["copyResources", "compileXslt", "compilePrint"]) {
+  // nop
 }
 
 task copyResources(type: Copy) {
@@ -108,6 +106,19 @@ if (xsltCompiler == "XX") {
     }
   }
 
+  task compilePrint(type: Exec, dependsOn: ["installXslt3", "copyResources"]) {
+    inputs.file "${projectDir}/src/main/xslt/print.xsl"
+    inputs.file "${projectDir}/src/main/index.html"
+    outputs.file "${buildDir}/website/print.html"
+    commandLine "node", "node_modules/xslt3/xslt3.js",
+      "-t", "-s:${projectDir}/src/main/index.html",
+      "-xsl:${projectDir}/src/main/xslt/print.xsl",
+      "-o:${buildDir}/website/print.html"
+    doFirst {
+      mkdir "${buildDir}/website/xslt"
+    }
+  }
+
   task cleanupNode() {
     doLast {
       delete "package.json"
@@ -131,6 +142,21 @@ if (xsltCompiler == "XX") {
         mkdir "${buildDir}/website/xslt"
       }
     }
+
+    task compilePrint(type: JavaExec, dependsOn: ["copyResources"]) {
+      inputs.file "${projectDir}/src/main/xslt/print.xsl"
+      inputs.file "${projectDir}/src/main/index.html"
+      outputs.file "${buildDir}/website/print.html"
+      classpath = configurations.saxon
+      mainClass = "com.saxonica.Transform"
+      args "-t",
+        "-s:${projectDir}/src/main/index.html",
+        "-xsl:${projectDir}/src/main/xslt/print.xsl",
+        "-o:${buildDir}/website/print.html"
+      doFirst {
+        mkdir "${buildDir}/website/xslt"
+      }
+    }
   } else {
     task compileXslt() {
       doLast {
@@ -138,6 +164,9 @@ if (xsltCompiler == "XX") {
         println("* You must have a Saxon EE license to use the XJ compiler. *")
         println("************************************************************")
       }
+    }
+    task compilePrint() {
+      // nop
     }
   }
 } else {

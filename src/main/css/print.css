@@ -1,0 +1,215 @@
+/* Print styles */
+
+:root {
+    --margin: 1in;
+    font-size: 18pt;
+}
+
+@page {
+    margin: 1in;
+    counter-reset: footnote;
+    @top-left {
+        content: "";
+    }
+    @top-center {
+        content: "";
+    }
+    @top-right {
+        content: "";
+    }
+    @bottom-left {
+        content: "";
+    }
+    @bottom-center {
+        content: "";
+    }
+    @bottom-right {
+        content: "";
+    }
+}
+
+@page A4-slide {
+    size: A4 landscape;
+    @top-center {
+        font-size: 12pt;
+        color: #7f7f7f;
+        content: string(RunningHead);
+    }
+    @bottom-center {
+        font-size: 12pt;
+        color: #7f7f7f;
+        content: string(Copyright);
+    }
+    @bottom-right {
+        font-size: 12pt;
+        content: counter(page);
+    }
+    @footnote {
+        float: bottom page;
+        border-top: thin solid black;
+        border-length: 30%;
+        padding-top: 0.5em;
+    }
+}
+
+@page A4-slide:first {
+    size: A4 landscape;
+    @top-center {
+        content: ""
+    }
+    @bottom-center {
+        font-size: 12pt;
+        color: #7f7f7f;
+        content: string(Copyright);
+    }
+    @bottom-right {
+        font-size: 12pt;
+        content: counter(page);
+    }
+    @footnote {
+        float: bottom page;
+        border-top: thin solid black;
+        border-length: 30%;
+        padding-top: 0.5em;
+    }
+}
+
+@page A4-title {
+    size: A4 landscape;
+    @top-center {
+        content: "";
+    }
+}
+
+@page Letter-slide {
+    size: Letter landscape;
+    @top-center {
+        font-size: 12pt;
+        color: #7f7f7f;
+        content: string(RunningHead);
+    }
+    @bottom-center {
+        font-size: 12pt;
+        color: #7f7f7f;
+        content: string(Copyright);
+    }
+    @bottom-right {
+        font-size: 12pt;
+        content: counter(page);
+    }
+    @footnote {
+        float: bottom page;
+        border-top: thin solid black;
+        border-length: 30%;
+        padding-top: 0.5em;
+    }
+}
+
+@page Letter-slide:first {
+    size: Letter landscape;
+    @top-center {
+        content: "";
+    }
+    @bottom-center {
+        font-size: 12pt;
+        color: #7f7f7f;
+        content: string(Copyright);
+    }
+    @bottom-right {
+        font-size: 12pt;
+        content: counter(page);
+    }
+    @footnote {
+        float: bottom page;
+        border-top: thin solid black;
+        border-length: 30%;
+        padding-top: 0.5em;
+    }
+}
+
+@page Letter-title {
+    size: Letter landscape;
+    @top-center {
+        content: "";
+    }
+}
+
+/* ============================================================ */
+/* Pick the correct page style to start */
+
+html body,
+html.A4 body {
+    page: A4-title;
+}
+
+html.Letter body {
+    page: Letter-title;
+}
+
+html div.slide,
+html.A4 div.slide {
+    page: A4-slide;
+}
+
+html.Letter div.slide {
+    page: Letter-slide;
+}
+
+html div.titlepage,
+html.A4 div.titlepage {
+    page: A4-title;
+}
+
+html.Letter div.titlepage {
+    page: Letter-title;
+}
+
+div.slide {
+    break-before: page;
+}
+
+/* ============================================================ */
+
+h1 {
+    margin-top: 0;
+    padding-top: 0;
+    string-set: RunningHead content()
+}
+
+.titlepage {
+    text-align: center;
+}
+
+.titlepage h1 {
+    padding-top: 15%;
+}
+
+.sectiontitle h1 {
+    text-align: center;
+    padding-top: 15%;
+}
+
+.abstract {
+    display: none;
+}
+
+.copyright {
+    display: none;
+    string-set: Copyright content()
+}
+
+a, a:link, a:visited,
+.link {
+    color: black;
+}
+
+.toc div {
+    margin-top: 1em;
+    font-size: 12pt;
+    column-count: 2;
+    column-fill: auto;
+}
+
+.toc a::after {
+    content: leader(dotted) " " target-counter(attr(href url), page);
+}
