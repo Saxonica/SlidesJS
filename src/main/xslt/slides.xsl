@@ -81,7 +81,7 @@
   </xsl:result-document>
 
   <xsl:result-document href="#slidesjs_nav" method="ixsl:replace-content">
-    <a href="https://github.com/ndw">help?</a>
+    <a href="https://saxonica.github.io/SlidesJS/help.html">help?</a>
     <xsl:text> </xsl:text>
     <span class="link" x-slide="toc">contents?</span>
     <xsl:text> </xsl:text>
