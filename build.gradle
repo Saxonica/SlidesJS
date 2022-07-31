@@ -61,6 +61,40 @@ task publish(dependsOn: ["copyResources", "compileXslt", "compilePrint"]) {
   // nop
 }
 
+// I want the XSLT source to contain a version number, but I'm never
+// going to remember to update it there, so I check that the version
+// in the source is the same as the version in gradle.properties
+task dist(
+  type: Exec,
+  description: "Check that the slidesJSversions match"
+) {
+  inputs.file "${projectDir}/gradle.properties"
+  inputs.file "${projectDir}/src/main/xslt/slides.xsl"
+  outputs.file "${buildDir}/version"
+
+  def getVersion = new ByteArrayOutputStream();
+  commandLine "grep", "xsl:variable.*slidesJSversion",
+    "${projectDir}/src/main/xslt/slides.xsl"
+  standardOutput = getVersion
+  doLast {
+    def xslVersion = getVersion.toString("utf-8")
+    def pos = xslVersion.indexOf("'");
+    xslVersion = xslVersion.substring(pos+1);
+    pos = xslVersion.indexOf("'");
+    xslVersion = xslVersion.substring(0, pos);
+    def output = new FileWriter(new File("${buildDir}/version"))
+    output.write(xslVersion)
+    output.close()
+    if (xslVersion != slidesJSversion) {
+      throw new GradleException("Versions don't match: ${xslVersion} != ${slidesJSversion}")
+    }
+  }
+  doFirst {
+    mkdir buildDir
+  }
+}
+
+
 task copyResources(type: Copy) {
   into "${buildDir}/website"
   from ("${projectDir}/src/main") {

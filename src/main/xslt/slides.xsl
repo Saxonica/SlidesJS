@@ -13,6 +13,8 @@
 
 <xsl:output method="html" html-version="5" encoding="utf-8" indent="no"/>
 
+<xsl:variable name="slidesJSversion" select="'1.2.0'"/>
+
 <xsl:mode on-no-match="shallow-copy"/>
 
 <xsl:variable name="seropt" select="map{'method':'xml','indent':true()}"/>
@@ -81,11 +83,10 @@
   </xsl:result-document>
 
   <xsl:result-document href="#slidesjs_nav" method="ixsl:replace-content">
-    <a href="https://saxonica.github.io/SlidesJS/help.html">help?</a>
-    <xsl:text> </xsl:text>
-    <span class="link" x-slide="toc">contents?</span>
-    <xsl:text> </xsl:text>
-    <span class="link" x-slide="0">restart?</span>
+    <span>SlidesJS version <xsl:sequence select="$slidesJSversion"/></span>
+    <ixsl:schedule-action wait="3000">
+      <xsl:call-template name="fixPageLinks"/>
+    </ixsl:schedule-action>
   </xsl:result-document>
 
   <xsl:if test="$countdown-timer or $talk-duration gt $ZERO-SECONDS">
@@ -97,6 +98,16 @@
 
   <xsl:result-document href="#slidesjs_copyright" method="ixsl:replace-content">
     <xsl:sequence select="/html/body/main/header/div[contains-token(@class, 'copyright')]/node()"/>
+  </xsl:result-document>
+</xsl:template>
+
+<xsl:template name="fixPageLinks">
+  <xsl:result-document href="#slidesjs_nav" method="ixsl:replace-content">
+    <a href="https://saxonica.github.io/SlidesJS/help.html">help?</a>
+    <xsl:text> </xsl:text>
+    <span class="link" x-slide="toc">contents?</span>
+    <xsl:text> </xsl:text>
+    <span class="link" x-slide="0">restart?</span>
   </xsl:result-document>
 </xsl:template>
 
