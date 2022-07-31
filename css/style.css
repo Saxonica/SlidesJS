@@ -13,6 +13,49 @@ html {
     padding: 0;
     height: 100%;
     font-family: var(--body-family);
-    font-size: 22pt;
+    font-size: 18pt;
     background-color: var(--light-background);
+    max-width: 50rem;
+}
+
+body {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-bottom: 4rem;
+}
+
+.note {
+    border: 1px solid var(--dark-background);
+    border-radius: 1em;
+    padding-left: 1em;
+    padding-right: 1em;
+    margin: 1em;
+}
+
+a, a:visited, a:link,
+.link {
+    color: var(--dark-foreground);
+}
+
+.key {
+    font-family: var(--mono-family);
+    background-color: var(--dark-background);
+    border: 1px solid var(--dark-foreground);
+    color: white;
+    border-radius: 6px;
+    padding-top: 0.1em;
+    padding-bottom: 0.1em;
+    padding-left: 0.3em;
+    padding-right: 0.3em;
+    margin: 0;
+    font-size: 85%;
+}
+
+@media screen and (min-width: 90rem) {
+    .contents {
+        width: 10rem;
+        position: fixed;
+        top: 1rem;
+        right: 0;
+    }
 }
