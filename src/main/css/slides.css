@@ -28,6 +28,21 @@ body.titlepage h1 {
     font-size: 3rem;
 }
 
+body.none main > div {
+    border: 2px solid var(--dark-background);
+    border-radius: 10px;
+    padding: 1em;
+    margin: 1em;
+}
+
+.s_titlepage, .s_section {
+    text-align: center;
+}
+
+.s_section h1 {
+    padding-bottom: 2rem;
+}
+
 footer {
     font-size: 10pt;
     color: var(--dark-foreground);

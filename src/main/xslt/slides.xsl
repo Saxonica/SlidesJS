@@ -250,7 +250,36 @@
   <xsl:param name="slideno" as="xs:integer"/>
 
   <ixsl:set-property name="location.hash"
-                     select="if ($slideno = 0) then '' else $slideno"/>
+                     select="if ($slideno = 0)
+                             then ''
+                             else if ($slideno lt 0)
+                                  then 'x'
+                                  else $slideno"/>
+
+  <xsl:choose>
+    <xsl:when test="$slideno lt 0">
+      <xsl:call-template name="render-all-slides"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:call-template name="render-individual-slide">
+        <xsl:with-param name="slideno" select="$slideno"/>
+      </xsl:call-template>
+    </xsl:otherwise>
+  </xsl:choose>
+
+  <xsl:sequence select="ixsl:call(ixsl:window(), 'forceHighlight', array{})"/>
+  <xsl:sequence select="f:set-property('currentPage', ixsl:get(ixsl:window(), 'location.href'))"/>
+</xsl:template>
+
+<xsl:template name="render-individual-slide">
+  <xsl:param name="slideno" as="xs:integer"/>
+
+  <ixsl:set-property name="location.hash"
+                     select="if ($slideno = 0)
+                             then ''
+                             else if ($slideno lt 0)
+                                  then 'x'
+                                  else $slideno"/>
 
   <xsl:variable name="slide" select="f:slide($slideno)"/>
 
@@ -277,21 +306,58 @@
   <xsl:result-document href="#slidesjs_pageno" method="ixsl:replace-content">
     <xsl:sequence select="$slideno || ' of ' || $last-slideno"/>
   </xsl:result-document>
-
-  <xsl:sequence select="ixsl:call(ixsl:window(), 'forceHighlight', array{})"/>
-  <xsl:sequence select="f:set-property('currentPage', ixsl:get(ixsl:window(), 'location.href'))"/>
 </xsl:template>
 
 <!-- ============================================================ -->
 
+<xsl:template name="render-all-slides">
+  <xsl:result-document href="#slidesjs_main" method="ixsl:replace-content">
+    <xsl:apply-templates select="f:slide(0)"/>
+    <div class="s_toc">
+      <header>
+        <h1>Table of Contents</h1>
+      </header>
+      <div>
+        <xsl:apply-templates select="$slides/html/body/main" mode="toc"/>
+      </div>
+    </div>
+    <xsl:for-each select="1 to $last-slideno">
+      <p>Slide <xsl:sequence select="."/>:</p>
+      <xsl:apply-templates select="f:slide(.)"/>
+    </xsl:for-each>
+  </xsl:result-document>
+
+  <ixsl:set-attribute name="class"
+                      select="'none'"
+                      object="ixsl:page()/html/body"/>
+</xsl:template>
+
+<!-- ============================================================ -->
+
+<xsl:template match="h:main/h:header" priority="200"> 
+  <div class="s_titlepage">
+    <xsl:next-match/>
+  </div>
+</xsl:template>
+
+<xsl:template match="h:section" priority="200"> 
+  <div class="s_section">
+    <xsl:next-match/>
+  </div>
+</xsl:template>
+
+<xsl:template match="h:div[contains-token(@class, 'slide')]" priority="200">
+  <div class="s_slide">
+    <xsl:next-match/>
+  </div>
+</xsl:template>
+
 <xsl:template match="h:main/h:header|h:section|h:div[contains-token(@class, 'slide')]"
               priority="100"> 
-  <div>
-    <div class="{if (f:get-property('showNotes')) then 'slidenotes' else 'slide'}">
-      <xsl:next-match/>
-    </div>
-    <xsl:apply-templates select="h:aside" mode="notes"/>
+  <div class="{if (f:get-property('showNotes')) then 'slidenotes' else 'slide'}">
+    <xsl:next-match/>
   </div>
+  <xsl:apply-templates select="h:aside" mode="notes"/>
 </xsl:template>
 
 <!-- the title slide -->
@@ -443,6 +509,21 @@
                           select="if (contains-token($toc-div/@class, 'hidden'))
                                   then 'block'
                                   else 'hidden'"/>
+    </xsl:when>
+    <xsl:when test="$key = 'x' and $slideno lt 0">
+      <xsl:variable name="return"
+                    select="if (f:get-property('returnTo') castable as xs:integer)
+                            then xs:integer(f:get-property('returnTo'))
+                            else 0"/>
+      <xsl:call-template name="navigate-to">
+        <xsl:with-param name="slideno" select="$return"/>
+      </xsl:call-template>
+    </xsl:when>
+    <xsl:when test="$key = 'x'">
+      <xsl:sequence select="f:set-property('returnTo', $slideno)"/>
+      <xsl:call-template name="navigate-to">
+        <xsl:with-param name="slideno" select="-1"/>
+      </xsl:call-template>
     </xsl:when>
     <xsl:when test="$key = 'Escape'">
       <xsl:variable name="toc-div" select="(ixsl:page()//h:div[@id = 'slidesjs_toc'])[1]"/>
@@ -632,19 +713,23 @@
 <xsl:function name="f:slideno" as="xs:integer">
   <xsl:param name="hash" as="xs:string"/>
 
-  <xsl:sequence select="if (substring-after($hash, '#') castable as xs:integer)
-                        then xs:integer(substring-after($hash, '#'))
-                        else 0"/>
+  <xsl:variable name="id" select="substring-after($hash, '#')"/>
+
+  <xsl:sequence select="if ($id castable as xs:integer)
+                        then xs:integer($id)
+                        else if ($id = 'x')
+                             then -1
+                             else 0"/>
 </xsl:function>
 
 <xsl:function name="f:slide" as="element()">
   <xsl:param name="slideno" as="xs:integer"/>
 
-  <xsl:variable name="main" select="$slides/html/body/main"/>
+  <xsl:variable name="main" select="$slides/h:html/h:body/h:main"/>
 
   <xsl:choose>
     <xsl:when test="$slideno = 0">
-      <xsl:sequence select="$main/header"/>
+      <xsl:sequence select="$main/h:header"/>
     </xsl:when>
     <xsl:when test="$slideno le $last-slideno">
       <xsl:sequence select="($main/div[contains-token(@class, 'slide')]
