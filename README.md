@@ -207,7 +207,7 @@ Several features can be enabled by adding HTML metadata to your presentation.
 If you specify a `localStorage.key` in the HTML metadata:
 
 ```xml
-&lt;meta name="localStorage.key" content="slidesjs" /&gt;
+<meta name="localStorage.key" content="slidesjs" />
 ```
 
 That key will be used with the HTML local storage API to keep
@@ -225,7 +225,7 @@ is irrelevant.
 If you specify a `timer` in the HTML metadata (with a value of `true`):
 
 ```xml
-&lt;meta name="timer" content="true"/&gt;
+<meta name="timer" content="true"/>
 ```
 
 A timer will be displayed in the lower-left corner of the speaker
@@ -239,7 +239,7 @@ of the screen) will reset it.
 If you specify the length of your talk in the HTML metadata:
 
 ```xml
-&lt;meta name="talk-length" content="30"/&gt;
+<meta name="talk-length" content="30"/>
 ```
 
 A countdown timer will be displayed in the lower-left corner of
