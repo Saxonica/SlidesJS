@@ -1,0 +1,25 @@
+/* Rules that apply only to browsers */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--light-background);
+    height: 100%;
+    display: grid;
+    grid-template-rows: 1fr auto auto;
+    grid-template-columns: 100%;
+}
+
+body.slide {
+    background-image: url('../img/slide-background.png');
+    background-repeat: no-repeat;
+    background-position: bottom right;
+    background-attachment: fixed;
+}
+
+body.titlepage,
+body.section {
+    background-image: url('../img/title-background.png');
+    background-repeat: no-repeat;
+    background-position: top right;
+    background-attachment: fixed;
+}
