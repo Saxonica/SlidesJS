@@ -26,7 +26,10 @@ window.manageSpeakerNotes = {
   "showNotes": false,
   "duration": 'PT0S',
   "startTime": "",
-  "paused": true
+  "paused": true,
+  "touchX": 0,
+  "touchY": 0,
+  "touchSwipe": ""
 };
 
 const storageChange = function(changes, areaName) {

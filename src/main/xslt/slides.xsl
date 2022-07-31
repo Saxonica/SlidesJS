@@ -418,7 +418,7 @@
     <xsl:if test="not(@id)">
       <xsl:attribute name="id" select="f:tumble-id(.)"/>
     </xsl:if>
-    <xsl:if test="$progressive and preceding-sibling::li || ancestor::li">
+    <xsl:if test="($progressive and preceding-sibling::li) or ancestor::li">
       <xsl:attribute name="class" select="'unrevealed ' || @class"/>
     </xsl:if>
     <xsl:apply-templates/>
@@ -434,7 +434,13 @@
 <!-- ============================================================ -->
 
 <xsl:template match="html" mode="ixsl:onkeyup">
-  <xsl:variable name="key" select="ixsl:get(ixsl:event(), 'key')"/>
+  <xsl:call-template name="navigate">
+    <xsl:with-param name="key" select="ixsl:get(ixsl:event(), 'key')"/>
+  </xsl:call-template>
+</xsl:template>
+
+<xsl:template name="navigate">
+  <xsl:param name="key" as="xs:string"/>
   <xsl:variable name="slideno" select="f:slideno()"/>
 
   <!-- The keypress happened in this browser -->
@@ -594,6 +600,114 @@
     <xsl:otherwise>
       <xsl:message select="'Unexpected link to ' || @x-slide"/>
     </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template match="*" mode="ixsl:ontouchstart">
+  <xsl:variable name="touches" select="ixsl:get(ixsl:event(), 'touches')"/>
+  <xsl:variable name="fingers" select="ixsl:get($touches, 'length')"/>
+
+  <xsl:if test="$fingers = 1">
+    <xsl:variable name="touch" select="ixsl:get($touches, '0')"/>
+    <xsl:variable name="clientX" select="ixsl:get($touch, 'clientX')"/>
+    <xsl:variable name="clientY" select="ixsl:get($touch, 'clientY')"/>
+
+    <xsl:variable name="width" select="ixsl:get(ixsl:window(), 'innerWidth')"/>
+    <xsl:variable name="height" select="ixsl:get(ixsl:window(), 'innerHeight')"/>
+
+    <!--
+    <xsl:message select="'touch:', $fingers, $clientX, $width || 'x' || $height "/>
+
+    <xsl:result-document href="#slidesjs_copyright" method="ixsl:replace-content">
+      <xsl:sequence select="'touch:', $fingers, $clientX, $width || 'x' || $height "/>
+    </xsl:result-document>
+    -->
+    
+    <xsl:choose>
+      <xsl:when test="$width and $clientX div $width lt 0.1">
+        <xsl:call-template name="navigate">
+          <xsl:with-param name="key" select="'ArrowLeft'"/>
+        </xsl:call-template>
+      </xsl:when>
+      <xsl:when test="$width and $clientX div $width gt 0.9">
+        <xsl:call-template name="navigate">
+          <xsl:with-param name="key" select="'ArrowRight'"/>
+        </xsl:call-template>
+      </xsl:when>
+      <xsl:when test="$height and $clientY div $height lt 0.1">
+        <xsl:call-template name="navigate">
+          <xsl:with-param name="key" select="'ArrowUp'"/>
+        </xsl:call-template>
+      </xsl:when>
+      <xsl:when test="$height and $clientY div $height gt 0.9">
+        <xsl:call-template name="navigate">
+          <xsl:with-param name="key" select="'ArrowDown'"/>
+        </xsl:call-template>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:sequence select="f:set-property('touchX', $clientX)"/>
+        <xsl:sequence select="f:set-property('touchY', $clientY)"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:if>
+</xsl:template>
+
+<xsl:template match="*" mode="ixsl:ontouchmove">
+  <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])"/>
+
+  <xsl:variable name="initialX" select="f:get-property('touchX')"/>
+  <xsl:variable name="initialY" select="f:get-property('touchY')"/>
+
+  <xsl:variable name="touches" select="ixsl:get(ixsl:event(), 'touches')"/>
+  <xsl:variable name="fingers" select="ixsl:get($touches, 'length')"/>
+
+  <xsl:if test="$initialX and $initialY and $fingers = 1">
+    <xsl:variable name="touch" select="ixsl:get($touches, '0')"/>
+    <xsl:variable name="clientX" select="ixsl:get($touch, 'clientX')"/>
+    <xsl:variable name="clientY" select="ixsl:get($touch, 'clientY')"/>
+
+    <xsl:if test="f:get-property('touchSwipe') = ''">
+      <ixsl:schedule-action wait="150">
+        <xsl:call-template name="handleSwipe"/>
+      </ixsl:schedule-action>
+    </xsl:if>
+
+    <!--
+    <xsl:message select="'moved:', $initialX, $clientX"/>
+    -->
+
+    <xsl:choose>
+      <xsl:when test="$initialX lt $clientX">
+        <xsl:sequence select="f:set-property('touchSwipe', 'left')"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:sequence select="f:set-property('touchSwipe', 'right')"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:if>
+</xsl:template>
+
+<xsl:template name="handleSwipe">
+  <xsl:variable name="swipe" select="f:get-property('touchSwipe')"/>
+  <xsl:sequence select="f:set-property('touchSwipe', '')"/>
+
+  <xsl:variable name="slideno" select="f:slideno()"/>
+
+  <!--
+  <xsl:message select="$swipe, $slideno"/>
+  -->
+
+  <xsl:choose>
+    <xsl:when test="$swipe = 'left'">
+      <xsl:call-template name="navigate">
+        <xsl:with-param name="key" select="'p'"/>
+      </xsl:call-template>
+    </xsl:when>
+    <xsl:when test="$swipe = 'right'">
+      <xsl:call-template name="navigate">
+        <xsl:with-param name="key" select="'n'"/>
+      </xsl:call-template>
+    </xsl:when>
   </xsl:choose>
 </xsl:template>
 
