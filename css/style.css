@@ -1,0 +1,18 @@
+:root {
+    --symbol-fonts: "Arial Unicode", "Apple Symbols", "Symbol", "Symbola_hint";
+    --body-family: "Lucida Sans Unicode", sans-serif, var(--symbol-fonts);
+    --title-family: "Lucida Sans Unicode", sans-serif, var(--symbol-fonts);
+    --mono-family: "B612 Mono", monospace, var(--symbol-fonts);
+    --light-background: #bbe4e9; 
+    --dark-background: #53a8b6;
+    --dark-foreground: #5585b5;
+}
+
+html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: var(--body-family);
+    font-size: 22pt;
+    background-color: var(--light-background);
+}
