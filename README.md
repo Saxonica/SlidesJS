@@ -5,7 +5,8 @@ A SaxonJS-based slide presentation tool.
 ## What
 
 SlidesJS presents (a specifically structured) HTML document as a series of slides, as one might
-display during a presentation.
+display during a presentation. See, for example,
+[the example presentation](https://saxonica.github.io/SlidesJS/example/).
 
 ## Why
 
