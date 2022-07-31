@@ -56,7 +56,9 @@ if (localStorageKey) {
   }
 
   let startTime = window.localStorage.getItem(`${localStorageKey}.startTime`);
-  if (startTime == null) {
+  // There was a bug in 1.1.0 that meant startTime could sometimes
+  // incorrectly get initialized to 'true' instead of a dateTime
+  if (startTime === null || startTime === "true") {
     startTime = new Date().toISOString();
     window.localStorage.setItem(`${localStorageKey}.startTime`, startTime);
   }
@@ -65,7 +67,7 @@ if (localStorageKey) {
   let paused = window.localStorage.getItem(`${localStorageKey}.paused`);
   if (paused == null) {
     paused = "true";
-    window.localStorage.setItem(`${localStorageKey}.startTime`, paused);
+    window.localStorage.setItem(`${localStorageKey}.paused`, paused);
   }
   window.manageSpeakerNotes.paused = (paused == "true");
 
