@@ -51,12 +51,6 @@
   </div>
 </xsl:template>
 
-<xsl:template match="h:main/h:section/h:header">
-  <div class="slide sectiontitle" id="{generate-id(.)}">
-    <xsl:apply-templates/>
-  </div>
-</xsl:template>
-
 <xsl:template match="h:div[contains-token(@class, 'slide')]">
   <xsl:copy>
     <xsl:apply-templates select="@*"/>
