@@ -33,7 +33,6 @@ const storageChange = function(changes, areaName) {
   if (changes.key.startsWith(localStorageKey)) {
     const key = changes.key.substring(localStorageKey.length + 1);
     if (window.manageSpeakerNotes[key] !== changes.newValue) {
-      console.log("Change:", key, "=", changes.newValue);
       window.manageSpeakerNotes[key] = changes.newValue;
     }
   }
