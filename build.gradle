@@ -69,18 +69,17 @@ task dist(
   description: "Check that the slidesJSversions match"
 ) {
   inputs.file "${projectDir}/gradle.properties"
-  inputs.file "${projectDir}/src/main/xslt/slides.xsl"
+  inputs.file "${projectDir}/src/main/js/start.js"
   outputs.file "${buildDir}/version"
 
   def getVersion = new ByteArrayOutputStream();
-  commandLine "grep", "xsl:variable.*slidesJSversion",
-    "${projectDir}/src/main/xslt/slides.xsl"
+  commandLine "grep", "const SlidesJSVersion", "${projectDir}/src/main/js/start.js"
   standardOutput = getVersion
   doLast {
     def xslVersion = getVersion.toString("utf-8")
-    def pos = xslVersion.indexOf("'");
+    def pos = xslVersion.indexOf("\"");
     xslVersion = xslVersion.substring(pos+1);
-    pos = xslVersion.indexOf("'");
+    pos = xslVersion.indexOf("\"");
     xslVersion = xslVersion.substring(0, pos);
     def output = new FileWriter(new File("${buildDir}/version"))
     output.write(xslVersion)

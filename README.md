@@ -48,6 +48,7 @@ I’ve also implemented progressive display of lists. But lots of tools can do t
 
 Navigation between slides is done mostly with keybindings, see
 [the online help](https://saxonica.github.io/SlidesJS/help.html).
+On touch screen devices, gestures are also supported.
 
 ## How
 
@@ -264,15 +265,24 @@ so we can’t capture it directly in XSLT.
 
 My workarounds are mostly in `js/start.js`. 
 
-1. We create a `manageSpeakerNotes` object. That object is local to
-   the window. It’s initialized a little bit carefully so that
-   reloading the page doesn’t accidentally break a running timer.
+1. We setup a `slidesEventQueue`. Everything that the app does, it
+   does in response to state changes added to this queue. This allows
+   the browser window that you’re “driving” with the keyboard and the
+   window that may be tracking changes through the local storage API
+   to work in the same way.
+1. We create a `manageSlides` object. This is a mutable storage object
+   that can be updated by both `start.js` and the SaxonJS application.
+   It’s initialized a little bit carefully so that reloading the page
+   doesn’t accidentally break a running timer.
 2. We register a plain old JavaScript event handler for the storage
-   change event. This handler simply updates the `manageSpeakerNotes`
-   object.
-3. In the stylesheet, we use `ixsl:schedule-action` to setup a
+   change event. This handler adds events to the queue.
+3. We register an “on hash change” event handler that tracks changes
+    to the fragment identifier. This allows the browser back button to
+    work as expected. Like the storage change handler, it works by
+    adding events to the queue.
+4. In the stylesheet, we use `ixsl:schedule-action` to setup a
    template that runs every 50ms. That template inspects the contents
-   of the `manageSpeakerNotes` object and responds accordingly.
+   of the `manageSlides` object and responds accordingly.
    
 (The object is called `manageSpeakerNotes` because it started out as a
 way of managing the presentation of speaker notes in a second browser

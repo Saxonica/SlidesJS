@@ -203,6 +203,10 @@ a, a:link, a:visited {
     font-weight: bold;
 }
 
+#slidesjs_time {
+    cursor: pointer;
+}
+
 #slidesjs_time_reset {
     float: right;
     padding-right: 20px;
