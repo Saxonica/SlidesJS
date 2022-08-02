@@ -1,4 +1,4 @@
-const SlidesJSVersion = "1.3.0";
+const SlidesJSVersion = "1.3.1";
 
 window.onload = function() {
   const defeatTheCache = new Date();
@@ -45,11 +45,11 @@ window.manageSlides = {
 
 if (localStorageKey) {
   if (window.localStorage.getItem(`${localStorageKey}.version`) !== SlidesJSVersion) {
-    for (let key in Object.keys(window.localStorage)) {
+    Object.keys(window.localStorage).forEach(key => {
       if (key.startsWith(localStorageKey+".")) {
         window.localStorage.removeItem(key);
       }
-    }
+    });
     window.localStorage.setItem(`${localStorageKey}.version`, SlidesJSVersion);
   }
 }
@@ -91,25 +91,22 @@ const hashChange = function(event) {
   window.slidesPushEvent("currentPage", normalizedLocation());
 };
 
+const initialValue = function(key, defaultValue) {
+  let value = null;
+  if (localStorageKey) {
+    value = window.localStorage.getItem(`${localStorageKey}.${key}`);
+  }
+  return value === null ? defaultValue : value;
+}
+
 window.slidesPushEvent("currentPage", normalizedLocation());
 
-let now = new Date().toString();
+let now = new Date().toISOString();
 window.slidesPushEvent("reload", now);
 
-let duration = (localStorageKey
-                ? window.localStorage.getItem(`${localStorageKey}.duration`)
-                : "PT0S");
-window.slidesPushEvent("duration", duration == null ? "PT0S" : duration);
-
-let startTime = (localStorageKey
-                 ? window.localStorage.getItem(`${localStorageKey}.startTime`)
-                 : now);
-window.slidesPushEvent("startTime", startTime);
-
-let paused = (localStorageKey
-              ? window.localStorage.getItem(`${localStorageKey}.paused`)
-              : 'true');
-window.slidesPushEvent("paused", paused === "true");
+window.slidesPushEvent("duration", initialValue("duration", "PT0S"));
+window.slidesPushEvent("startTime", initialValue("startTime", now));
+window.slidesPushEvent("paused", initialValue("paused", "true") === "true");
 
 window.addEventListener("storage", storageChange);
 window.addEventListener("hashchange", hashChange);
