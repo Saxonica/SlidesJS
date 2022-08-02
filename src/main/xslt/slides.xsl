@@ -273,7 +273,7 @@
 
   <xsl:result-document href="#slidesjs_message" method="ixsl:replace-content">
     <xsl:if test="ixsl:page()//h:li[contains-token(@class, 'unrevealed')]">
-      <xsl:text>(progressive)</xsl:text>
+      <xsl:text> (progressive)</xsl:text>
     </xsl:if>
   </xsl:result-document>
 </xsl:template>
@@ -447,13 +447,13 @@
 <xsl:template match="li">
   <xsl:variable name="progressive"
                 select="ancestor::ul[contains-token(@class, 'progressive')]
-                        or ancestor::ul[contains-token(@class, 'progressive')]"/>
+                        or ancestor::ol[contains-token(@class, 'progressive')]"/>
   <li>
     <xsl:sequence select="@* except @class"/>
     <xsl:if test="not(@id)">
       <xsl:attribute name="id" select="f:tumble-id(.)"/>
     </xsl:if>
-    <xsl:if test="($progressive and preceding-sibling::li) or ancestor::li">
+    <xsl:if test="$progressive and (preceding-sibling::li or ancestor::li)">
       <xsl:attribute name="class" select="'unrevealed ' || @class"/>
     </xsl:if>
     <xsl:apply-templates/>
