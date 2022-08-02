@@ -13,12 +13,10 @@
 
 <xsl:output method="html" html-version="5" encoding="utf-8" indent="no"/>
 
-<xsl:variable name="slidesJSversion" select="'1.2.0'"/>
-
 <xsl:mode on-no-match="shallow-copy"/>
 
-<xsl:variable name="seropt" select="map{'method':'xml','indent':true()}"/>
 <xsl:variable name="ZERO-SECONDS" select="xs:dayTimeDuration('PT0S')"/>
+<xsl:variable name="ONE-SECOND" select="xs:dayTimeDuration('PT1S')"/>
 <xsl:variable name="ONE-MINUTE" select="xs:dayTimeDuration('PT1M')"/>
 <xsl:variable name="FIVE-MINUTES" select="xs:dayTimeDuration('PT5M')"/>
 <xsl:variable name="TEN-MINUTES" select="xs:dayTimeDuration('PT10M')"/>
@@ -26,6 +24,7 @@
 <xsl:variable name="update-interval" select="50"/>
 
 <xsl:variable name="slides" select="/"/>
+
 <xsl:variable name="last-slideno"
               select="count(//h:section) + count(//h:div[contains-token(@class, 'slide')])"/>
 
@@ -36,8 +35,10 @@
 <xsl:variable name="countdown-timer"
               select="(/html/head/meta[@name='timer'])[1]/@content/string()
                       = ('yes', 'true', '1')"/>
+
 <xsl:variable name="meta-length"
               select="(/html/head/meta[@name='talk-length'])[1]/@content/string()"/>
+
 <xsl:variable name="talk-minutes"
               select="if (empty($meta-length))
                       then 0
@@ -45,6 +46,7 @@
                            then 60 * xs:integer(substring-before($meta-length, ':'))
                                 + xs:integer(substring-after($meta-length, ':'))
                            else xs:integer($meta-length)"/>
+
 <xsl:variable name="talk-duration"
               select="xs:dayTimeDuration('PT' || $talk-minutes || 'M')"/>
 
@@ -64,11 +66,9 @@
       </xsl:result-document>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:call-template name="render-slide">
-        <xsl:with-param name="slideno" select="f:slideno()"/>
-      </xsl:call-template>
+      <xsl:sequence select="f:set-property('lastUpdate', string(saxon:timestamp()))"/>
       <ixsl:schedule-action wait="$update-interval">
-        <xsl:call-template name="updateSpeakerNotes"/>
+        <xsl:call-template name="updateSlides"/>
       </ixsl:schedule-action>
     </xsl:otherwise>
   </xsl:choose>
@@ -83,14 +83,16 @@
   </xsl:result-document>
 
   <xsl:result-document href="#slidesjs_nav" method="ixsl:replace-content">
-    <span>SlidesJS version <xsl:sequence select="$slidesJSversion"/></span>
+    <span>
+      <xsl:text>SlidesJS version </xsl:text>
+      <xsl:sequence select="f:get-property('slidesJSVersion')"/>
+    </span>
     <ixsl:schedule-action wait="3000">
       <xsl:call-template name="fixPageLinks"/>
     </ixsl:schedule-action>
   </xsl:result-document>
 
   <xsl:if test="$countdown-timer or $talk-duration gt $ZERO-SECONDS">
-    <xsl:call-template name="updateTime"/>
     <xsl:result-document href="#slidesjs_time_reset" method="ixsl:replace-content">
       <xsl:text>reset</xsl:text>
     </xsl:result-document>
@@ -111,64 +113,109 @@
   </xsl:result-document>
 </xsl:template>
 
-<xsl:template name="updateSpeakerNotes">
-  <xsl:variable name="navigated" select="f:get-property('navigated')"/>
-  <xsl:variable name="currentPage" select="f:get-property('currentPage')"/>
-  <xsl:variable name="reload" select="f:get-property('reload')"/>
-  <xsl:variable name="revealed" select="f:get-property('reveal')"/>
-  <xsl:variable name="unrevealed" select="f:get-property('unreveal')"/>
+<xsl:template name="updateSlides">
+  <xsl:variable name="stateChange" select="ixsl:call(ixsl:window(), 'slidesPopEvent', [])"/>
+  <xsl:choose>
+    <xsl:when test="exists($stateChange)">
+      <xsl:variable name="state" select="ixsl:get($stateChange, 'state')"/>
+      <xsl:variable name="value" select="ixsl:get($stateChange, 'value')"/>
 
-  <xsl:variable name="curloc"
-                select="ixsl:get(ixsl:window(), 'location.href')"/>
+      <!-- <xsl:message select="$state, '=', $value"/> -->
 
-  <xsl:if test="not($navigated)">
-    <xsl:choose>
-      <xsl:when test="$currentPage != '' and $currentPage != $curloc">
-        <xsl:call-template name="render-slide">
-          <xsl:with-param name="slideno"
-                          select="f:slideno($currentPage)"/>
-        </xsl:call-template>
-      </xsl:when>
-      <xsl:when test="$reload != ''">
-        <xsl:call-template name="render-slide">
-          <xsl:with-param name="slideno"
-                          select="f:slideno($curloc)"/>
-        </xsl:call-template>
-        <xsl:sequence select="f:set-property('reload', '')"/>
-      </xsl:when>
-      <xsl:otherwise>
-      </xsl:otherwise>
-    </xsl:choose>
-    
-    <xsl:if test="$revealed">
-      <xsl:variable name="element" select="id($revealed, ixsl:page())"/>
-      <ixsl:set-attribute name="class"
-                          select="'revealed'"
-                          object="$element"/>
-      <xsl:sequence select="f:store('reveal', '')"/>
-      <xsl:sequence select="f:set-property('reveal', false())"/>
-    </xsl:if>    
+      <xsl:choose>
+        <xsl:when test="$state = 'currentPage' or $state = 'reload'">
+          <xsl:call-template name="render-slide"/>
+        </xsl:when>
+        <xsl:when test="$state = 'duration'">
+          <xsl:sequence select="f:set-property($state, xs:dayTimeDuration($value))"/>
+        </xsl:when>
+        <xsl:when test="$state = 'startTime'">
+          <xsl:sequence select="f:set-property($state, xs:dateTime($value))"/>
+        </xsl:when>
+        <xsl:when test="$state = 'paused'">
+          <xsl:sequence select="f:set-property($state, string($value) = 'true')"/>
+        </xsl:when>
+        <xsl:when test="$state = 'reveal'">
+          <xsl:if test="$value != ''">
+            <xsl:sequence select="f:set-property('last-'||$state, $value)"/>
+            <xsl:variable name="element"
+                          select="ixsl:page()//*[@id = $value]"/>
+            <xsl:if test="exists($element)">
+              <ixsl:set-attribute name="class"
+                                  select="'revealed'"
+                                  object="$element"/>
+            </xsl:if>
+          </xsl:if>
+        </xsl:when>
+        <xsl:when test="$state = 'reveal-all'">
+          <xsl:if test="$value != ''">
+            <xsl:sequence select="f:set-property('last-'||$state, $value)"/>
+            <xsl:for-each select="tokenize($value, '\s+')">
+              <xsl:variable name="id" select="."/>
+              <xsl:variable name="element"
+                            select="ixsl:page()//*[@id = $id]"/>
+              <xsl:if test="exists($element)">
+                <ixsl:set-attribute name="class"
+                                    select="'revealed'"
+                                    object="$element"/>
+              </xsl:if>
+            </xsl:for-each>
+          </xsl:if>
+        </xsl:when>
+        <xsl:when test="$state = 'unreveal'">
+          <xsl:if test="$value != ''">
+            <xsl:sequence select="f:set-property('last-'||$state, $value)"/>
+            <xsl:variable name="element"
+                          select="ixsl:page()//*[@id = $value]"/>
+            <xsl:if test="exists($element)">
+              <ixsl:set-attribute name="class"
+                                  select="'unrevealed'"
+                                  object="$element"/>
+            </xsl:if>
+          </xsl:if>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:message select="'Unexpected event: ' || $state || '=' || $value"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:when>
+    <xsl:otherwise>
+      <!-- If there's no event pending, then once a second update the
+           timer if it's being used. Alternatively, the updateTime
+           template could be running in its own schedule-action loop,
+           but that introduces race conditions, so this is simpler. -->
+      <xsl:variable name="lastUpdate" select="f:get-property('lastUpdate')"/>
+      <xsl:if test="($countdown-timer or $talk-duration gt $ZERO-SECONDS)
+                    and $lastUpdate castable as xs:dateTime
+                    and saxon:timestamp() - xs:dateTime($lastUpdate) gt $ONE-SECOND">
+        <xsl:call-template name="updateTime"/>
+        <xsl:sequence select="f:set-property('lastUpdate', string(saxon:timestamp()))"/>
+      </xsl:if>
 
-    <xsl:if test="$unrevealed">
-      <xsl:variable name="element" select="id($unrevealed, ixsl:page())"/>
-      <ixsl:set-attribute name="class"
-                          select="'unrevealed'"
-                          object="$element"/>
-      <xsl:sequence select="f:store('unreveal', '')"/>
-      <xsl:sequence select="f:set-property('unreveal', false())"/>
-    </xsl:if>    
-  </xsl:if>
-
-  <xsl:sequence select="f:set-property('navigated', false())"/>
+      <!-- The localStorage API only transmits changed values; make sure
+           we clear an reveal values. If we don't, some combinations of
+           page navigation and reveal will fail to transmit the correct
+           reveal value. At the same time, we have to make sure that we
+           don't set and then reset the value in the same execution because
+           then the localStorage API never sees the correct value. So
+           we have this thing where we only reset them when there aren't
+           any state changes to consume. -->
+      <xsl:for-each select="('reveal', 'unreveal', 'reveal-all')">
+        <xsl:variable name="key" select="'last-'||."/>
+        <xsl:if test="f:get-property($key) != ''">
+          <xsl:sequence select="f:set-property($key, '')"/>
+          <xsl:sequence select="f:push(., '')"/>
+        </xsl:if>
+      </xsl:for-each>
+    </xsl:otherwise>
+  </xsl:choose>
 
   <ixsl:schedule-action wait="$update-interval">
-    <xsl:call-template name="updateSpeakerNotes"/>
+    <xsl:call-template name="updateSlides"/>
   </ixsl:schedule-action>
 </xsl:template>
 
 <xsl:template name="updateTime">
-  <xsl:param name="once" as="xs:boolean" select="false()"/>
-
   <xsl:variable name="paused" select="f:get-property('paused')"/>
   <xsl:variable name="start" select="xs:dateTime(f:get-property('startTime'))"/>
   <xsl:variable name="savedDuration" select="xs:dayTimeDuration(f:get-property('duration'))"/>
@@ -179,7 +226,7 @@
         <xsl:sequence select="xs:dayTimeDuration('PT0S')"/>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:sequence select="f:rounded-duration(saxon:timestamp() - $start)"/>
+        <xsl:sequence select="saxon:timestamp() - $start"/>
       </xsl:otherwise>
     </xsl:choose>
   </xsl:variable>
@@ -229,57 +276,36 @@
       <xsl:text>(progressive)</xsl:text>
     </xsl:if>
   </xsl:result-document>
-
-  <xsl:if test="not($once)">
-    <xsl:sequence select="f:store('paused', string($paused))"/>
-    <ixsl:schedule-action wait="1000">
-      <xsl:call-template name="updateTime"/>
-    </ixsl:schedule-action>
-  </xsl:if>
 </xsl:template>
 
-<xsl:template name="navigate-to">
-  <xsl:param name="slideno" as="xs:integer"/>
-  
-  <xsl:call-template name="render-slide">
-    <xsl:with-param name="slideno" select="$slideno"/>
-  </xsl:call-template>
-
-  <xsl:if test="$localStorageKey">
-    <xsl:variable name="curloc"
-                  select="ixsl:get(ixsl:window(), 'location.href')"/>
-    <xsl:variable name="storeloc"
-                  select="ixsl:call(ixsl:window(), 'localStorage.getItem',
-                                    [$localStorageKey || '.currentPage'])"/>
-    <xsl:if test="$curloc != $storeloc">
-      <xsl:sequence select="f:store('currentPage', $curloc)"/>
-    </xsl:if>
-  </xsl:if>
-</xsl:template>
+<!-- ============================================================ -->
 
 <xsl:template name="render-slide">
-  <xsl:param name="slideno" as="xs:integer"/>
-
-  <ixsl:set-property name="location.hash"
-                     select="if ($slideno = 0)
-                             then ''
-                             else if ($slideno lt 0)
-                                  then 'x'
-                                  else $slideno"/>
+  <xsl:variable name="href"
+                select="ixsl:get(ixsl:window(), 'location.href')"/>
+  <xsl:variable name="hash" select="substring-after($href, '#')"/>
 
   <xsl:choose>
-    <xsl:when test="$slideno lt 0">
+    <xsl:when test="$hash castable as xs:integer">
+      <xsl:variable name="slideno" select="xs:integer($hash)"/>
+      <xsl:if test="$slideno ge 0 and $slideno le $last-slideno">
+        <xsl:call-template name="render-individual-slide">
+          <xsl:with-param name="slideno" select="$slideno"/>
+        </xsl:call-template>
+      </xsl:if>
+    </xsl:when>
+    <xsl:when test="normalize-space($hash) = ''">
+      <xsl:call-template name="render-individual-slide">
+        <xsl:with-param name="slideno" select="0"/>
+      </xsl:call-template>
+    </xsl:when>
+    <xsl:when test="$hash = 'x'">
       <xsl:call-template name="render-all-slides"/>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:call-template name="render-individual-slide">
-        <xsl:with-param name="slideno" select="$slideno"/>
-      </xsl:call-template>
+      <xsl:message select="'Cannot render', $href"/>
     </xsl:otherwise>
   </xsl:choose>
-
-  <xsl:sequence select="ixsl:call(ixsl:window(), 'forceHighlight', array{})"/>
-  <xsl:sequence select="f:set-property('currentPage', ixsl:get(ixsl:window(), 'location.href'))"/>
 </xsl:template>
 
 <xsl:template name="render-individual-slide">
@@ -318,8 +344,6 @@
     <xsl:sequence select="$slideno || ' of ' || $last-slideno"/>
   </xsl:result-document>
 </xsl:template>
-
-<!-- ============================================================ -->
 
 <xsl:template name="render-all-slides">
   <xsl:result-document href="#slidesjs_main" method="ixsl:replace-content">
@@ -454,10 +478,6 @@
   <xsl:param name="key" as="xs:string"/>
   <xsl:variable name="slideno" select="f:slideno()"/>
 
-  <!-- The keypress happened in this browser -->
-  <ixsl:set-property name="manageSpeakerNotes.navigated"
-                     select="true()"/>
-
   <xsl:variable name="hidden"
                 select="ixsl:page()//*[contains-token(@class, 'unrevealed')]"/>
   <xsl:variable name="revealed"
@@ -465,61 +485,44 @@
 
   <xsl:choose>
     <xsl:when test="$key = 'n' and $slideno lt $last-slideno">
-      <xsl:call-template name="navigate-to">
-        <xsl:with-param name="slideno" select="$slideno + 1"/>
-      </xsl:call-template>
+      <ixsl:set-property name="location.hash" select="$slideno + 1"/>
     </xsl:when>
+
     <xsl:when test="($key = ' ' or $key = 'ArrowRight' or $key = 'ArrowDown') and $hidden">
-      <ixsl:set-attribute name="class"
-                          select="'revealed'"
-                          object="$hidden[1]"/>
-      <xsl:if test="$localStorageKey">
-        <xsl:sequence select="f:store('reveal', $hidden[1]/@id)"/>
-      </xsl:if>
+      <xsl:sequence select="f:push('reveal', string($hidden[1]/@id))"/>
     </xsl:when>
+
     <xsl:when test="($key = ' ' or $key = 'ArrowRight' or $key = 'ArrowDown')
                     and $slideno lt $last-slideno">
-      <xsl:call-template name="navigate-to">
-        <xsl:with-param name="slideno" select="$slideno + 1"/>
-      </xsl:call-template>
+      <ixsl:set-property name="location.hash" select="$slideno + 1"/>
     </xsl:when>
+
     <xsl:when test="$key = 'p' and $slideno gt 0">
-      <xsl:call-template name="navigate-to">
-        <xsl:with-param name="slideno" select="$slideno - 1"/>
-      </xsl:call-template>
+      <ixsl:set-property name="location.hash" select="$slideno - 1"/>
     </xsl:when>
+
     <xsl:when test="($key = 'ArrowLeft' or $key = 'ArrowUp') and $revealed">
-      <ixsl:set-attribute name="class"
-                          select="'unrevealed'"
-                          object="$revealed[last()]"/>
-      <xsl:if test="$localStorageKey">
-        <xsl:sequence select="f:store('unreveal', $revealed[last()]/@id)"/>
-      </xsl:if>
+      <xsl:sequence select="f:push('unreveal', string($revealed[last()]/@id))"/>
     </xsl:when>
+
     <xsl:when test="($key = 'ArrowLeft' or $key = 'ArrowUp')
                     and $slideno gt 0">
-      <xsl:call-template name="navigate-to">
-        <xsl:with-param name="slideno" select="$slideno - 1"/>
-      </xsl:call-template>
+      <ixsl:set-property name="location.hash" select="$slideno - 1"/>
     </xsl:when>
+
     <xsl:when test="$key = 'h'">
-      <xsl:call-template name="navigate-to">
-        <xsl:with-param name="slideno" select="0"/>
-      </xsl:call-template>
+      <ixsl:set-property name="location.hash" select="''"/>
     </xsl:when>
+
     <xsl:when test="$key = 'a' and $hidden">
-      <xsl:for-each select="$hidden">
-        <ixsl:set-attribute name="class"
-                            select="'revealed'"
-                            object="."/>
-      </xsl:for-each>
+      <xsl:sequence select="f:push('reveal-all', string-join($hidden/@id, ' '))"/>
     </xsl:when>
+
     <xsl:when test="$key = 's'">
       <xsl:sequence select="f:set-property('showNotes', not(f:get-property('showNotes')))"/>
-      <xsl:call-template name="render-slide">
-        <xsl:with-param name="slideno" select="f:slideno()"/>
-      </xsl:call-template>
+      <xsl:sequence select="f:push('reload', string(saxon:timestamp()))"/>
     </xsl:when>
+
     <xsl:when test="$key = 't'">
       <xsl:variable name="toc-div" select="(ixsl:page()//h:div[@id = 'slidesjs_toc'])[1]"/>
       <ixsl:set-attribute name="class" object="$toc-div"
@@ -527,25 +530,25 @@
                                   then 'block'
                                   else 'hidden'"/>
     </xsl:when>
+
     <xsl:when test="$key = 'x' and $slideno lt 0">
       <xsl:variable name="return"
                     select="if (f:get-property('returnTo') castable as xs:integer)
                             then xs:integer(f:get-property('returnTo'))
-                            else 0"/>
-      <xsl:call-template name="navigate-to">
-        <xsl:with-param name="slideno" select="$return"/>
-      </xsl:call-template>
+                            else ''"/>
+      <ixsl:set-property name="location.hash" select="$return"/>
     </xsl:when>
+
     <xsl:when test="$key = 'x'">
       <xsl:sequence select="f:set-property('returnTo', $slideno)"/>
-      <xsl:call-template name="navigate-to">
-        <xsl:with-param name="slideno" select="-1"/>
-      </xsl:call-template>
+      <ixsl:set-property name="location.hash" select="'x'"/>
     </xsl:when>
+
     <xsl:when test="$key = 'Escape'">
       <xsl:variable name="toc-div" select="(ixsl:page()//h:div[@id = 'slidesjs_toc'])[1]"/>
       <ixsl:set-attribute name="class" object="$toc-div" select="'hidden'"/>
     </xsl:when>
+
     <xsl:otherwise>
       <xsl:message select="'Unexpected key ' || $key || ' on '
         || $slideno || ' of ' || $last-slideno"/>
@@ -554,52 +557,39 @@
 </xsl:template>
 
 <xsl:template match="h:span[@id='slidesjs_pause']" mode="ixsl:onclick">
+  <xsl:variable name="paused" select="f:get-property('paused')"/>
   <xsl:choose>
-    <xsl:when test="f:get-property('paused')">
-      <ixsl:set-attribute name="class" select="'slidesjs_running'" object="."/>
-      <xsl:variable name="now" select="string(saxon:timestamp())"/>
-      <xsl:sequence select="f:store('startTime', $now)"/>
-      <xsl:sequence select="f:store('paused', 'false')"/>
-      <xsl:sequence select="f:set-property('startTime', $now)"/>
-      <xsl:sequence select="f:set-property('paused', false())"/>
+    <xsl:when test="$paused">
+      <!-- we're unpausing, reset the start time -->
+      <xsl:sequence select="f:push('startTime', string(saxon:timestamp()))"/>
     </xsl:when>
     <xsl:otherwise>
-      <ixsl:set-attribute name="class" select="'slidesjs_paused'" object="."/>
-      <xsl:variable name="now" select="saxon:timestamp()"/>
-      <xsl:variable name="then" select="xs:dateTime(f:get-property('startTime'))"/>
-
+      <!-- we're pausing, save the duration -->
+      <xsl:variable name="start" select="xs:dateTime(f:get-property('startTime'))"/>
       <xsl:variable name="total"
                     select="f:rounded-duration(xs:dayTimeDuration(f:get-property('duration'))
-                                               + ($now - $then))"/>
-
-      <xsl:sequence select="f:store('duration', string($total))"/>
-      <xsl:sequence select="f:store('paused', 'true')"/>
-      <xsl:sequence select="f:set-property('duration', string($total))"/>
-      <xsl:sequence select="f:set-property('paused', true())"/>
+                                               + (saxon:timestamp() - $start))"/>
+      <xsl:sequence select="f:push('duration', string($total))"/>
     </xsl:otherwise>
   </xsl:choose>
-
-  <xsl:call-template name="updateTime">
-    <xsl:with-param name="once" select="true()"/>
-  </xsl:call-template>
+  <xsl:sequence select="f:push('paused', string(not($paused)))"/>
 </xsl:template>
 
 <xsl:template match="h:span[@id='slidesjs_time_reset']" mode="ixsl:onclick">
-  <xsl:sequence select="f:set-property('paused', true())"/>
-  <xsl:sequence select="f:set-property('duration', 'PT0S')"/>
-  <xsl:sequence select="f:store('paused', 'true')"/>
-  <xsl:sequence select="f:store('duration', 'PT0S')"/>
-  <xsl:call-template name="updateTime">
-    <xsl:with-param name="once" select="true()"/>
-  </xsl:call-template>
+  <xsl:sequence select="f:push('paused', 'true')"/>
+  <xsl:sequence select="f:push('duration', 'PT0S')"/>
 </xsl:template>
 
 <xsl:template match="h:span[contains-token(@class, 'link')]" mode="ixsl:onclick">
   <xsl:choose>
     <xsl:when test="@x-slide castable as xs:integer">
-      <xsl:call-template name="render-slide">
-        <xsl:with-param name="slideno" select="xs:integer(@x-slide)"/>
-      </xsl:call-template>
+      <xsl:variable name="slideno" select="xs:integer(@x-slide)"/>
+      <ixsl:set-property name="location.hash"
+                         select="if ($slideno = 0)
+                                 then ''
+                                 else if ($slideno lt 0)
+                                      then 'x'
+                                      else $slideno"/>
     </xsl:when>
     <xsl:when test="@x-slide = 'toc'">
       <xsl:variable name="toc-div" select="(ixsl:page()//h:div[@id = 'slidesjs_toc'])[1]"/>
@@ -626,36 +616,33 @@
     <xsl:variable name="width" select="ixsl:get(ixsl:window(), 'innerWidth')"/>
     <xsl:variable name="height" select="ixsl:get(ixsl:window(), 'innerHeight')"/>
 
-    <!--
-    <xsl:message select="'touch:', $fingers, $clientX, $width || 'x' || $height "/>
+    <!-- Assume this is just an edge click. -->
+    <xsl:sequence select="f:set-property('touchX', '')"/>
+    <xsl:sequence select="f:set-property('touchY', '')"/>
 
-    <xsl:result-document href="#slidesjs_copyright" method="ixsl:replace-content">
-      <xsl:sequence select="'touch:', $fingers, $clientX, $width || 'x' || $height "/>
-    </xsl:result-document>
-    -->
-    
     <xsl:choose>
-      <xsl:when test="$width and $clientX div $width lt 0.1">
+      <xsl:when test="$width and $clientX div $width lt 0.2">
         <xsl:call-template name="navigate">
           <xsl:with-param name="key" select="'ArrowLeft'"/>
         </xsl:call-template>
       </xsl:when>
-      <xsl:when test="$width and $clientX div $width gt 0.9">
+      <xsl:when test="$width and $clientX div $width gt 0.8">
         <xsl:call-template name="navigate">
           <xsl:with-param name="key" select="'ArrowRight'"/>
         </xsl:call-template>
       </xsl:when>
-      <xsl:when test="$height and $clientY div $height lt 0.1">
+      <xsl:when test="$height and $clientY div $height lt 0.2">
         <xsl:call-template name="navigate">
           <xsl:with-param name="key" select="'ArrowUp'"/>
         </xsl:call-template>
       </xsl:when>
-      <xsl:when test="$height and $clientY div $height gt 0.9">
+      <xsl:when test="$height and $clientY div $height gt 0.8">
         <xsl:call-template name="navigate">
           <xsl:with-param name="key" select="'ArrowDown'"/>
         </xsl:call-template>
       </xsl:when>
       <xsl:otherwise>
+        <!-- It wasn't an edge click, hold onto the positions. -->
         <xsl:sequence select="f:set-property('touchX', $clientX)"/>
         <xsl:sequence select="f:set-property('touchY', $clientY)"/>
       </xsl:otherwise>
@@ -663,63 +650,42 @@
   </xsl:if>
 </xsl:template>
 
-<xsl:template match="*" mode="ixsl:ontouchmove">
-  <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])"/>
-
-  <xsl:variable name="initialX" select="f:get-property('touchX')"/>
-  <xsl:variable name="initialY" select="f:get-property('touchY')"/>
-
-  <xsl:variable name="touches" select="ixsl:get(ixsl:event(), 'touches')"/>
+<xsl:template match="*" mode="ixsl:ontouchend">
+  <xsl:variable name="touches" select="ixsl:get(ixsl:event(), 'changedTouches')"/>
   <xsl:variable name="fingers" select="ixsl:get($touches, 'length')"/>
 
-  <xsl:if test="$initialX and $initialY and $fingers = 1">
+  <xsl:if test="$fingers = 1">
     <xsl:variable name="touch" select="ixsl:get($touches, '0')"/>
     <xsl:variable name="clientX" select="ixsl:get($touch, 'clientX')"/>
-    <xsl:variable name="clientY" select="ixsl:get($touch, 'clientY')"/>
+    <xsl:variable name="initialX" select="f:get-property('touchX')"/>
 
-    <xsl:if test="f:get-property('touchSwipe') = ''">
-      <ixsl:schedule-action wait="150">
-        <xsl:call-template name="handleSwipe"/>
-      </ixsl:schedule-action>
+    <xsl:if test="$initialX">
+      <xsl:variable name="width" select="ixsl:get(ixsl:window(), 'innerWidth')"/>
+      <xsl:variable name="deltaX" select="$clientX - $initialX"/>
+      <xsl:variable name="percX" select="abs($deltaX) div $width"/>
+
+      <!-- Ignore "swipes" that cover less than 5% of the device width -->
+      <xsl:if test="$percX gt 0.05">
+        <xsl:choose>
+          <xsl:when test="$deltaX gt 0">
+            <xsl:call-template name="navigate">
+              <xsl:with-param name="key" select="'p'"/>
+            </xsl:call-template>
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:call-template name="navigate">
+              <xsl:with-param name="key" select="'n'"/>
+            </xsl:call-template>
+          </xsl:otherwise>
+        </xsl:choose>
+
+        <xsl:sequence select="f:set-property('initialX', '')"/>
+        <xsl:sequence select="f:set-property('initialY', '')"/>
+        <xsl:sequence select="f:set-property('clientX', '')"/>
+        <xsl:sequence select="f:set-property('clientY', '')"/>
+      </xsl:if>
     </xsl:if>
-
-    <!--
-    <xsl:message select="'moved:', $initialX, $clientX"/>
-    -->
-
-    <xsl:choose>
-      <xsl:when test="$initialX lt $clientX">
-        <xsl:sequence select="f:set-property('touchSwipe', 'left')"/>
-      </xsl:when>
-      <xsl:otherwise>
-        <xsl:sequence select="f:set-property('touchSwipe', 'right')"/>
-      </xsl:otherwise>
-    </xsl:choose>
   </xsl:if>
-</xsl:template>
-
-<xsl:template name="handleSwipe">
-  <xsl:variable name="swipe" select="f:get-property('touchSwipe')"/>
-  <xsl:sequence select="f:set-property('touchSwipe', '')"/>
-
-  <xsl:variable name="slideno" select="f:slideno()"/>
-
-  <!--
-  <xsl:message select="$swipe, $slideno"/>
-  -->
-
-  <xsl:choose>
-    <xsl:when test="$swipe = 'left'">
-      <xsl:call-template name="navigate">
-        <xsl:with-param name="key" select="'p'"/>
-      </xsl:call-template>
-    </xsl:when>
-    <xsl:when test="$swipe = 'right'">
-      <xsl:call-template name="navigate">
-        <xsl:with-param name="key" select="'n'"/>
-      </xsl:call-template>
-    </xsl:when>
-  </xsl:choose>
 </xsl:template>
 
 <!-- ============================================================ -->
@@ -929,26 +895,21 @@
   </xsl:choose>
 </xsl:function>
 
-<xsl:function name="f:store" as="xs:string?">
-  <xsl:param name="key" as="xs:string"/>
-  <xsl:param name="value" as="xs:string"/>
-  <xsl:if test="$localStorageKey">
-    <xsl:variable name="storage-key" select="$localStorageKey || '.' || $key"/>
-    <xsl:sequence select="ixsl:call(ixsl:window(), 'localStorage.setItem',
-                                    [$storage-key, $value])"/>
-  </xsl:if>
-</xsl:function>
-
 <xsl:function name="f:get-property">
   <xsl:param name="key" as="xs:string"/>
-  <xsl:sequence select="ixsl:get(ixsl:window(), 'manageSpeakerNotes.' || $key)"/>
+  <xsl:sequence select="ixsl:get(ixsl:window(), 'manageSlides.' || $key)"/>
 </xsl:function>
 
 <xsl:function name="f:set-property">
   <xsl:param name="key" as="xs:string"/>
   <xsl:param name="value" as="item()"/>
-  <ixsl:set-property name="manageSpeakerNotes.{$key}"
-                     select="$value"/>
+  <ixsl:set-property name="manageSlides.{$key}" select="$value"/>
+</xsl:function>
+
+<xsl:function name="f:push">
+  <xsl:param name="key" as="xs:string"/>
+  <xsl:param name="value" as="item()"/>
+  <xsl:sequence select="ixsl:call(ixsl:window(), 'slidesPushEvent', [$key, $value])"/>
 </xsl:function>
 
 </xsl:stylesheet>
