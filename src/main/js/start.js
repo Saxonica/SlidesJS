@@ -1,4 +1,4 @@
-const SlidesJSVersion = "1.3.2";
+const SlidesJSVersion = "1.3.3";
 
 window.onload = function() {
   const defeatTheCache = new Date();
