@@ -336,8 +336,6 @@
                       select="string-join($classes, ' ')"
                       object="ixsl:page()/html/body"/>
 
-  <xsl:sequence select="ixsl:call(ixsl:window(), 'forceHighlight', [])"/>
-
   <xsl:result-document href="#slidesjs_main" method="ixsl:replace-content">
     <xsl:apply-templates select="f:slide($slideno)"/>
   </xsl:result-document>
@@ -345,6 +343,8 @@
   <xsl:result-document href="#slidesjs_pageno" method="ixsl:replace-content">
     <xsl:sequence select="$slideno || ' of ' || $last-slideno"/>
   </xsl:result-document>
+
+  <xsl:sequence select="ixsl:call(ixsl:window(), 'forceHighlight', [])"/>
 </xsl:template>
 
 <xsl:template name="render-all-slides">
